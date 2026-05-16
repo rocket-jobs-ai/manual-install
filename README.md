@@ -2,7 +2,7 @@
 
 [Rocket Jobs](https://rocketjobs.ai) turns a generic AI coding agent (Claude Code, Codex, opencode) into a job-application assistant. Installed skills let the agent read tracked roles from your dashboard, generate a tailored resume and cover letter, and drive your browser through the application form.
 
-This repository is the **public mirror** of the installer and skill bundles. The source of truth lives in a private repo at [`kelvanb97/rocket-jobs`](https://github.com/kelvanb97/rocket-jobs); each release is automatically synced here from there. The mirror exists so you can read what the installer is going to run **before** running it — or skip the installer entirely and place files by hand.
+This repository is the **public mirror** of the installer and skill bundles, kept in sync with what `rocketjobs.ai` serves. It exists so you can read what the installer is going to run **before** running it — or skip the installer entirely and place files by hand.
 
 ## What gets installed
 
