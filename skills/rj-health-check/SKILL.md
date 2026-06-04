@@ -52,7 +52,7 @@ Follow these strictly. Read before acting.
 - **Never write the config file.** The installer owns that file; if it
   isn't there, the fix is running the installer, not this skill.
 - **Respect URL overrides from arguments.** If the invocation arguments
-  include a base-URL override (e.g. "use http://localhost:3000 instead
+  include a base-URL override (e.g. "use http://localhost:4000 instead
   of https://rocketjobs.ai for API requests"), substitute that base
   URL for every API call below. The default base is
   `https://www.rocketjobs.ai`.
@@ -92,9 +92,9 @@ Before calling the API, audit required MCPs. You — the running agent
 
 ### Required MCPs
 
-| MCP        | Used by   | Why                                                                  |
-| ---------- | --------- | -------------------------------------------------------------------- |
-| Playwright | rj-apply  | Provides the `browser_*` tools used to drive job-application forms. |
+| MCP        | Used by  | Why                                                                 |
+| ---------- | -------- | ------------------------------------------------------------------- |
+| Playwright | rj-apply | Provides the `browser_*` tools used to drive job-application forms. |
 
 For each required MCP, decide one of `ok` or `missing` based on your
 own tool registry. Set a shell variable per MCP, e.g.:
@@ -149,12 +149,12 @@ the UI reports the failure instead of just timing out.
 
 ## Step 4 — Handle the response
 
-| Status | Action |
-| ------ | ------ |
-| `200`  | Parse body. Continue to Step 5. |
+| Status | Action                                                                                                                                              |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `200`  | Parse body. Continue to Step 5.                                                                                                                     |
 | `401`  | Token rejected. Tell the user the token is invalid and they should copy a fresh one from rocketjobs.ai/onboarding, then re-run the installer. Stop. |
-| `5xx`  | API is down. Print the status code and tell the user to retry later. Stop. |
-| other  | Print the status and exit with an actionable message. |
+| `5xx`  | API is down. Print the status code and tell the user to retry later. Stop.                                                                          |
+| other  | Print the status and exit with an actionable message.                                                                                               |
 
 Parse the 200 response without `jq` if it's not installed:
 
@@ -190,11 +190,11 @@ SEVERITY=$(grep -i '^x-skill-update-severity:' "$HDRS" \
 
 Decision table:
 
-| `LATEST` vs `SKILL_VERSION` | `SEVERITY`            | Behavior                                                                 |
-| --------------------------- | --------------------- | ------------------------------------------------------------------------ |
-| equal or `LATEST` empty     | —                     | No update message. Skip the rest of this step.                           |
+| `LATEST` vs `SKILL_VERSION` | `SEVERITY`            | Behavior                                                                                          |
+| --------------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
+| equal or `LATEST` empty     | —                     | No update message. Skip the rest of this step.                                                    |
 | different                   | `required`            | Print a blocking warning. Offer to run the update (see below). Stop at Step 7 summary either way. |
-| different                   | `recommended` / other | Print the available version. Offer to run the update (see below). Continue. |
+| different                   | `recommended` / other | Print the available version. Offer to run the update (see below). Continue.                       |
 
 ### Offer to run the update
 
@@ -234,25 +234,26 @@ in Step 2), this is a hard stop:
 2. Ask the user about installing the missing MCP (substitute the MCP
    name and server command for whichever entry is missing):
 
-   > The Playwright MCP server isn't registered for this agent. I can
-   > register it for you at the user/global scope using
-   > `npx -y @playwright/mcp@latest` as the server command.
-   >
-   > Install it now? (yes / no)
+    > The Playwright MCP server isn't registered for this agent. I can
+    > register it for you at the user/global scope using
+    > `npx -y @playwright/mcp@latest` as the server command.
+    >
+    > Install it now? (yes / no)
 
-   - **Yes** → register the MCP at user/global scope using **whatever
-     mechanism your harness exposes** (its CLI's `mcp add` subcommand,
-     editing its MCP config file, etc.). Do not bake in commands or
-     paths specific to one agent. The server command to register is:
+    - **Yes** → register the MCP at user/global scope using **whatever
+      mechanism your harness exposes** (its CLI's `mcp add` subcommand,
+      editing its MCP config file, etc.). Do not bake in commands or
+      paths specific to one agent. The server command to register is:
 
-     ```
-     npx -y @playwright/mcp@latest
-     ```
+        ```
+        npx -y @playwright/mcp@latest
+        ```
 
-     Then tell the user the MCP was registered and that they should
-     reload their agent according to its own reload behavior and
-     re-invoke `/rj-health-check`.
-   - **No** → leave the dep missing.
+        Then tell the user the MCP was registered and that they should
+        reload their agent according to its own reload behavior and
+        re-invoke `/rj-health-check`.
+
+    - **No** → leave the dep missing.
 
 3. **Stop after the user replies.** Do not run downstream skills, do
    not retry the API call, do not "wait and check again" — the next
@@ -306,10 +307,10 @@ rm -f "$HDRS" "$BODY"
 
 ## Failure handling summary
 
-| Situation                                         | What to do                                                                                             |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `curl` fails with non-zero exit                   | Network error. Print the exit code and a retry hint. Do not modify state. Overall status `UNHEALTHY`.  |
-| `$HOME` not set                                   | Print "HOME is not set — cannot continue." Stop.                                                       |
-| `~/.rocket-jobs/config` missing                   | Tell the user to run the installer; it writes that file. Stop. Overall status `UNHEALTHY`.             |
-| Config present but token malformed                | Tell the user to re-run the installer to write a fresh token. Stop. Overall status `UNHEALTHY`.        |
-| Required MCP not registered                       | Mark `missing` in the request body so the server broadcasts the failure. Short-circuit per Step 6. Offer to register at user/global scope using the running agent's MCP mechanism. Either way, overall status `UNHEALTHY`. |
+| Situation                          | What to do                                                                                                                                                                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `curl` fails with non-zero exit    | Network error. Print the exit code and a retry hint. Do not modify state. Overall status `UNHEALTHY`.                                                                                                                      |
+| `$HOME` not set                    | Print "HOME is not set — cannot continue." Stop.                                                                                                                                                                           |
+| `~/.rocket-jobs/config` missing    | Tell the user to run the installer; it writes that file. Stop. Overall status `UNHEALTHY`.                                                                                                                                 |
+| Config present but token malformed | Tell the user to re-run the installer to write a fresh token. Stop. Overall status `UNHEALTHY`.                                                                                                                            |
+| Required MCP not registered        | Mark `missing` in the request body so the server broadcasts the failure. Short-circuit per Step 6. Offer to register at user/global scope using the running agent's MCP mechanism. Either way, overall status `UNHEALTHY`. |

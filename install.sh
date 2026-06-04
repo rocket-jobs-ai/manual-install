@@ -238,11 +238,8 @@ printf '%s\n' "$REMOTE_VERSION" > "$RJ_HOME/VERSION"
 
 [ -n "$TOKEN" ] && write_token_config
 
-log ""
 if [ -z "$LOCAL_VERSION" ]; then
 	log "installed Rocket Jobs skills v$REMOTE_VERSION for $AGENT."
-	log ""
-	log "next: open $AGENT and run /rj-health-check to verify the setup."
 else
 	log "updated Rocket Jobs skills: v$LOCAL_VERSION → v$REMOTE_VERSION."
 fi

@@ -230,6 +230,25 @@ A `200` returns `{ data: { resumePath, coverLetterPath } }`. On any
 non-200, surface the body's `error` field to the user and stop. The
 draft row is intact for retry.
 
+**Quota exhausted (`402` with `error.code = "QUOTA_EXCEEDED"`)**: the
+user has hit their monthly application cap. The body looks like:
+
+```
+{ "ok": false, "error": {
+  "code": "QUOTA_EXCEEDED",
+  "message": "You've used all 30 applications on the free plan this cycle. Upgrade at https://rocketjobs.ai/dashboard/account to keep applying.",
+  "actionType": "apply",
+  "plan": "free",
+  "used": 30,
+  "limit": 30,
+  "periodEnd": "2026-06-01T00:00:00Z"
+} }
+```
+
+Print the `error.message` to the user verbatim and stop. Do not retry.
+The draft application row stays, so they can resume after upgrading or
+after the period resets at `error.periodEnd`.
+
 ## Step G — Download documents to local disk
 
 The agent runs locally; Storage is in the cloud. Mint signed URLs and
@@ -555,6 +574,7 @@ uploaded.
 | Login wall                                    | Ask the user to log in in the browser window, wait for "continue".                             |
 | CAPTCHA                                       | Ask the user to solve it, wait for "continue".                                                 |
 | Doc generation fails                          | Surface the API error message. Draft row stays. User can retry by re-invoking rj-apply.        |
+| 402 `QUOTA_EXCEEDED` on doc generation        | Print `error.message` verbatim (includes the upgrade link). Do not retry. Draft row stays.     |
 | Form field can't be found                     | Take a snapshot, describe what is visible, ask the user for guidance. Do not guess selectors.  |
 | Submit button click failed                    | Same as above — describe, ask, retry.                                                          |
 | `/submit` API call fails after browser submit | Do NOT claim success. Report the API error. The user can manually retry the PATCH.             |
