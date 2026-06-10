@@ -133,7 +133,7 @@ Open your agent and invoke the `rj-health-check` skill using your agent's own sy
 
 To pick up a new release:
 
-- **Installer path:** re-run `./install.sh --agent=… --token=…` (or the `curl … | bash` form). It compares the local `~/.rocket-jobs/VERSION` against the published manifest and only re-downloads if there's a change.
+- **Installer path:** re-run the installer — `curl -fsSL https://rocketjobs.ai/update.sh | bash -s -- --agent=…` (or `/install.sh`; the two are identical, `update.sh` just reads clearly when you already have it installed). It compares the local `~/.rocket-jobs/VERSION` against the published manifest and only re-downloads if there's a change. No `--token` is needed on a re-run — it reuses `~/.rocket-jobs/config`. The exact command for your agent is also shown in the dashboard's **Update** section (`https://rocketjobs.ai/dashboard/agent#update`).
 - **Manual path:** `git pull` and `git checkout <new-tag>` in your local mirror, recopy the skill directories, update `~/.rocket-jobs/VERSION`.
 
 ## Uninstalling

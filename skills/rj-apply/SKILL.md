@@ -178,6 +178,26 @@ Save the `data` object. You will reuse it in every later step. Set
 `URL` from `data.role.url`. If `URL` is null, tell the user the role
 has no URL and stop.
 
+### Enforce skill version before continuing
+
+The context response carries a server-built update message in its headers
+(already saved to `$(hdrs B)`). Read it once, here — do not re-check on
+later calls:
+
+```bash
+UPDATE_MSG=$(grep -i '^x-skill-update-message:' "$(hdrs B)" \
+             | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n')
+```
+
+If `UPDATE_MSG` is non-empty, the skills are out of date and this is a hard
+stop. Do **not** create the draft, generate documents, or open the browser.
+Print `UPDATE_MSG` to the user **verbatim** — it names both versions and
+links to the dashboard page with the one-line update command — then stop.
+
+**Never run the update yourself.** Skills do not execute the installer or any
+`curl … | bash`; the user runs it from their own terminal after opening the
+link. If `UPDATE_MSG` is empty, continue.
+
 ## Step C — Display the role and confirm
 
 Show the user:

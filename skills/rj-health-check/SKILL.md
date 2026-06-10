@@ -184,49 +184,23 @@ ERRORS=$(grep -oE '"errors"[[:space:]]*:[[:space:]]*\[[^]]*\]' "$BODY" \
 
 ## Step 5 — Surface update availability
 
-Read the latest version from the response headers:
+The server decides whether the installed skills are out of date and, if
+so, returns a ready-to-print message. Read it from the response headers:
 
 ```bash
-LATEST=$(grep -i '^x-skill-latest-version:' "$HDRS" \
-         | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n')
-SEVERITY=$(grep -i '^x-skill-update-severity:' "$HDRS" \
-           | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n')
+UPDATE_MSG=$(grep -i '^x-skill-update-message:' "$HDRS" \
+             | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r\n')
 ```
 
-Decision table:
+If `UPDATE_MSG` is non-empty, the skills are out of date. Print it to the
+user **verbatim** — it already names both versions and links to the
+dashboard page that shows the one-line update command. If it is empty,
+there is no update; skip the rest of this step.
 
-| `LATEST` vs `SKILL_VERSION` | `SEVERITY`            | Behavior                                                                                          |
-| --------------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
-| equal or `LATEST` empty     | —                     | No update message. Skip the rest of this step.                                                    |
-| different                   | `required`            | Print a blocking warning. Offer to run the update (see below). Stop at Step 7 summary either way. |
-| different                   | `recommended` / other | Print the available version. Offer to run the update (see below). Continue.                       |
-
-### Offer to run the update
-
-Tell the user the new version is available, then ask **verbatim**:
-
-> An update is available (`<SKILL_VERSION>` → `<LATEST>`). Want me to
-> run the install command now? (yes / no)
-
-**Wait for an explicit yes.** If the user says yes, run:
-
-```bash
-curl -fsSL https://rocketjobs.ai/install.sh | bash -s -- --agent="$AGENT"
-```
-
-`AGENT` is the value parsed from the API response in Step 4. The
-installer re-uses the existing `~/.rocket-jobs/config`, so no token is
-needed on a re-run.
-
-If the user says no (or anything other than yes), print the command
-for them to run manually:
-
-```
-curl -fsSL https://rocketjobs.ai/install.sh | bash -s -- --agent=<their-agent>
-```
-
-Do not run the install command without an explicit yes in this
-session — past approval does not carry over.
+**Never run the update yourself.** Skills do not execute the installer or
+any `curl … | bash` — that is a security boundary. The user opens the link
+and runs the command from their own terminal. Your only job here is to
+relay the message; then continue to the summary.
 
 ## Step 6 — Short-circuit on missing dependency
 
