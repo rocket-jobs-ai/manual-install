@@ -4,16 +4,20 @@ description: >
     Apply to one tracked role end-to-end. Generates a tailored resume
     and cover letter, drives Chrome through the Playwright MCP to fill
     out the application form, and pauses for your confirmation before
-    submitting. Pass the role ID from your Rocket Jobs dashboard:
-    /rj-apply <role-id>.
+    submitting. Pass the role ID from your Rocket Jobs dashboard, e.g.
+    rj-apply <role-id>.
 
 
-    Triggers: "/rj-apply", "rj-apply", "apply to role",
-    "submit application".
+    Triggers: "rj-apply", "apply to role", "submit application".
 user-invocable: true
 ---
 
 # rj-apply
+
+**Skill invocation syntax.** This file names skills bare — `rj-apply`,
+`rj-health-check`. When you invoke one or tell the user to run it, use
+**your** agent's own syntax: Claude Code prefixes a `/`, Codex a `$`,
+OpenCode and others use the bare name. Never assume `/`.
 
 Apply to a single tracked role end-to-end. Follow these steps in order.
 
@@ -33,7 +37,7 @@ from the dashboard before re-invoking.
 - **Never write `~/.rocket-jobs/config`.** The installer owns it.
 - **Use the Playwright MCP browser tools (`browser_*`).** Never spawn
   `node`, never write Playwright scripts to `/tmp`. If the MCP isn't
-  registered, Step D defers to `/rj-health-check` — don't duplicate
+  registered, Step D defers to `rj-health-check` — don't duplicate
   the registration flow here.
 - **Do not submit until the user explicitly confirms.** The skill
   pauses at Step J and waits for a yes.
@@ -43,7 +47,29 @@ from the dashboard before re-invoking.
 
 ## API base URL
 
-All API calls hit `https://www.rocketjobs.ai/api/agent/apply/...`.
+All apply calls hit `https://www.rocketjobs.ai/api/agent/apply/...`. One
+sibling endpoint, `https://www.rocketjobs.ai/api/agent/signal`, takes the
+best-effort UI signals — `open-arcade` first thing in Step 0, `agent-attention`
+at each input pause.
+
+## Step 0 — Fire the arcade invite
+
+This step's only job is to broadcast `open-arcade` the instant the skill runs —
+before argument validation or any other call — so the dashboard modal pops as
+fast as possible. Read only the token and post; don't validate, don't block.
+Step A does the real token and argument checks.
+
+```bash
+TOKEN=$(grep -oE '"access_token"[[:space:]]*:[[:space:]]*"[^"]+"' \
+        "$HOME/.rocket-jobs/config" 2>/dev/null \
+        | sed 's/.*"\([^"]*\)"$/\1/')
+curl -sS -o /dev/null --max-time 5 -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Skill-Name: rj-apply" \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"open-arcade"}' \
+  "https://www.rocketjobs.ai/api/agent/signal" 2>/dev/null || true
+```
 
 ## Step A — Read the access token and validate the argument
 
@@ -53,10 +79,9 @@ if [ -z "$ROLE_ID" ]; then
   cat <<'EOF'
 rj-apply needs a role ID.
 
-Open the role in the Rocket Jobs dashboard, copy the rj-apply command
-from the role detail page, and re-invoke. The command looks like:
-
-  /rj-apply 4a8e1c52-9f0b-4e0a-8f44-2cc1ef2d8a01
+Open the role in the Rocket Jobs dashboard and copy the apply command
+from the role detail page — it's already formatted for your agent —
+then re-invoke with that role ID.
 EOF
   exit 0
 fi
@@ -95,6 +120,20 @@ nor body are printed to the transcript:
 ```bash
 hdrs() { printf "/tmp/rj-apply-%s-%s-h" "$$" "$1"; }
 body() { printf "/tmp/rj-apply-%s-%s-b" "$$" "$1"; }
+
+# Best-effort UI signal to the user's dashboard — pops a modal while the agent
+# works (open-arcade) or when it needs input (agent-attention). Fire-and-forget:
+# it never blocks the flow, failures are swallowed, and the dashboard need not
+# be open for the run to succeed.
+signal() {
+  curl -sS -o /dev/null --max-time 5 -X POST \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "X-Skill-Name: rj-apply" \
+    -H "X-Skill-Version: $SKILL_VERSION" \
+    -H 'Content-Type: application/json' \
+    -d "{\"kind\":\"$1\"}" \
+    "https://www.rocketjobs.ai/api/agent/signal" 2>/dev/null || true
+}
 ```
 
 ## Step B — Fetch the role context
@@ -148,6 +187,13 @@ Show the user:
 - Salary: `{salaryMin} – {salaryMax}` (omit if both null)
 - URL: `{url}`
 
+This is the first pause for input, so fire the attention signal before
+asking — the user may have kicked off the run and stepped away:
+
+```bash
+signal agent-attention
+```
+
 Ask: "Apply to this role? (yes / no)". **Wait for the user.** If they
 decline, stop here without touching state.
 
@@ -165,7 +211,7 @@ If the Playwright MCP is **not** registered for you, dependency
 setup belongs to `rj-health-check`, not this skill. Tell the user:
 
 > The Playwright MCP server isn't registered for this agent. Run
-> `/rj-health-check` to register it, then re-invoke `/rj-apply
+> `rj-health-check` to register it, then re-invoke `rj-apply
 > <role-id>` once your agent has reloaded the new MCP.
 
 Stop. Do not duplicate the registration flow here — `rj-health-check`
@@ -352,12 +398,13 @@ first-class — no temp scripts, no stdout JSON parsing.
    with `browser_click`. Then snapshot again. Repeat until you reach
    the form (one snapshot/click per loop iteration; do not chain
    guesses).
-6. **Login walls**: if the snapshot shows a sign-in form, tell the
-   user "Please log in in the browser window — say 'continue' when
-   ready." Wait for the user. The MCP's persistent profile carries
-   the session forward to subsequent runs.
-7. **CAPTCHA**: same pattern — tell the user to solve it, wait for
-   "continue".
+6. **Login walls**: if the snapshot shows a sign-in form, fire
+   `signal agent-attention` (best-effort), then tell the user "Please log
+   in in the browser window — say 'continue' when ready." Wait for the
+   user. The MCP's persistent profile carries the session forward to
+   subsequent runs.
+7. **CAPTCHA**: same pattern — fire `signal agent-attention`, tell the
+   user to solve it, wait for "continue".
 
 ## Step I — Fill the form
 
@@ -474,6 +521,13 @@ Filled out for {company.name}:
 ... (cover the major sections you filled)
 ```
 
+This is the main place the user gets pulled back after wandering off during
+generation, so fire the attention signal before prompting:
+
+```bash
+signal agent-attention
+```
+
 Then say: "The application form is filled out in the browser window.
 Please review it. Should I submit? (yes / no)"
 
@@ -569,7 +623,7 @@ uploaded.
 | `~/.rocket-jobs/config` missing or malformed  | Tell the user to run the installer. Stop.                                                      |
 | 401 from any API call                         | Token rejected. Tell the user to re-run the installer. Stop.                                   |
 | 404 on `/context/$ROLE_ID`                    | Role isn't in the user's tracker. Tell the user to add it on the dashboard. Stop.              |
-| Playwright MCP not registered                 | Tell the user to run `/rj-health-check` (which owns dependency setup), then re-invoke. Stop. |
+| Playwright MCP not registered                 | Tell the user to run `rj-health-check` (which owns dependency setup), then re-invoke. Stop. |
 | Page is illegitimate                          | Mark the role skipped via `/skip`, tell the user the reason, stop.                             |
 | Login wall                                    | Ask the user to log in in the browser window, wait for "continue".                             |
 | CAPTCHA                                       | Ask the user to solve it, wait for "continue".                                                 |

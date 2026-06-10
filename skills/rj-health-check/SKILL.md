@@ -6,15 +6,20 @@ description: >
     MCP (currently Playwright) is registered. Reports plan, agent,
     skill version, and an overall PASS/FAIL verdict. Other skills
     assume this passes; if a skill complains that a dependency is
-    missing, run /rj-health-check to fix it.
+    missing, run rj-health-check to fix it.
 
 
-    Triggers: "/rj-health-check", "rj-health-check", "check rocket
-    jobs", "verify rocket jobs setup".
+    Triggers: "rj-health-check", "check rocket jobs", "verify rocket
+    jobs setup".
 user-invocable: true
 ---
 
 # rj-health-check
+
+**Skill invocation syntax.** This file names skills bare —
+`rj-health-check`, `rj-apply`. When you invoke one or tell the user to
+run it, use **your** agent's own syntax: Claude Code prefixes a `/`,
+Codex a `$`, OpenCode and others use the bare name. Never assume `/`.
 
 This skill is the **single source of truth** for whether the user's
 Rocket Jobs setup is healthy. It runs a full dependency audit:
@@ -251,13 +256,13 @@ in Step 2), this is a hard stop:
 
         Then tell the user the MCP was registered and that they should
         reload their agent according to its own reload behavior and
-        re-invoke `/rj-health-check`.
+        re-invoke `rj-health-check`.
 
     - **No** → leave the dep missing.
 
 3. **Stop after the user replies.** Do not run downstream skills, do
    not retry the API call, do not "wait and check again" — the next
-   `/rj-health-check` invocation is the next attempt. Other skills
+   `rj-health-check` invocation is the next attempt. Other skills
    (e.g. `rj-apply`) must defer to this skill rather than retrying
    themselves.
 
@@ -290,7 +295,7 @@ HEALTHY` only when **every** check above is `ok` (token, API, and each
 required MCP). Any `missing` or `pending reload` → `Status:
 UNHEALTHY`, followed by a one-line follow-up telling the user the
 action they need to take (e.g. "Reload your agent and re-run
-`/rj-health-check`.").
+`rj-health-check`.").
 
 Stop after the summary. Do not suggest onboarding next steps — the
 dashboard handles those — but the action follow-up for unhealthy

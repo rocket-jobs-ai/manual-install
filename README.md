@@ -125,7 +125,7 @@ echo "<tag-you-installed>" > ~/.rocket-jobs/VERSION
 
 ### 4. Verify
 
-Open your agent and run `/rj-health-check`. It should report **PASS** along with the installed version, your agent name, and the skills it found.
+Open your agent and invoke the `rj-health-check` skill using your agent's own syntax (e.g. `/rj-health-check` in Claude Code, `$rj-health-check` in Codex). It should report **PASS** along with the installed version, your agent name, and the skills it found.
 
 ---
 
